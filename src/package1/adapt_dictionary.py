@@ -12,6 +12,8 @@ Further Improvements:
 """
 import re
 import codecs #library to read input in utf-8
+import pandas as pd
+
 
 class D_bot:
 	def __init__(self):
@@ -25,7 +27,7 @@ class D_bot:
 		self.jpn = {}
 		self.jpn_hira = {}
 
-		self.error_log = open("../log/error_log.txt","w")
+		#self.error_log = open("../files/logs/error_log.txt","w")
 
 		#initialize dictionaries
 		#build_eng_freq()
@@ -60,7 +62,7 @@ class D_bot:
 	
 	def build_jpn_hira(self):
 		
-		error_log = open("../log/error_log2.txt","w")
+		#error_log = open("../log/error_log2.txt","w")
 
 		with codecs.open(self.jpn_hira, 'r', encoding="utf8") as f3:
 			for line in f3:
@@ -169,7 +171,9 @@ def parantheses_check(s):
 def main():
 	#testing building jpn_hira
 	D = D_bot()
-	D.build_jpn_hira()
+	D.build_eng_freq()
+	print "hello"
+	print D.eng.items()
 	
 
 if __name__ == '__main__':

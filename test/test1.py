@@ -1,11 +1,15 @@
 import unittest
+import sys
+
+#sys paths
+sys.path.insert(0, "/Users/andylee/Documents/Andy_Personal/AI_Subs/src/package1")
 import adapt_dictionary as AD
 
 class Test_AdaptDictionary(unittest.TestCase):
 	
 	def setUp(self):
-		D = AD()
-
+		print "hello"
+		D = AD.D_Bot()
 
 	#test to ensure that english frequency dictionary is built correctly
 	def test_engfreq(self):
@@ -20,6 +24,7 @@ class Test_AdaptDictionary(unittest.TestCase):
 		
 
 	#test to ensure that japanese frequency dictionary is built correctly
+	@unittest.skip("skip jpn freq")
 	def test_jpnfreq(self):
 		#init
 		D.build_jpn_freq()
@@ -29,6 +34,7 @@ class Test_AdaptDictionary(unittest.TestCase):
 		self.assertEqual()
 
 	#test to ensure that japanese kanji:hira dictionary is buitl correctly
+	@unittest.skip("skip jpn hira")
 	def test_jpnhira(self):
 		#init
 		D.build_jpn_hira()
