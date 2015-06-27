@@ -1,19 +1,31 @@
-
+# -*- coding: utf-8 -*-
 """
 This module builds the following dictionaries that are useful for translation services. 
 	1. english frequency list (1-5000)
 	2. japanese frequency list (1-20000)
 	3. japanese (kanji: hiragana) dictionary
 
-Further Improvements:
-	- convert dictionaries into database
-	- do further check to ensure that all entries are processed correctly
+It is important to remember that all our dictionary entries for japanese are being encoded in utf-8, so to display them correctly
+we'll need to decode them from "utf-8". 
+
+Notes:
+1. Exception detection in jpn_hira
+  Some lines in the dictionary file require special attention to process correctly. We list a few odd cases of lines we have found
+  and explain how we process them. 
+
+  a) " 鬼殺し;鬼ころし;鬼ごろし [おにころし(鬼殺し,鬼ころし);おにごろし(鬼殺し,鬼ごろし)] "
+
+  Here, all our information is embedded in the hiragana and we really have no reason to use the kanji. With this process
+  we clear away the hiragana for grammar tags (e.g. (p). (io)) and link the list of kanji corresponding to each hiragana 
+  in the dictionary. 
+
+  For example, 鬼殺し,鬼ころし -> おにころし and 鬼殺し,鬼ごろし -> おにごろし
 
 """
 import re
 import codecs #library to read input in utf-8
 import pandas as pd
-
+import string
 
 class D_bot:
 	def __init__(self):
@@ -21,18 +33,19 @@ class D_bot:
 		self.eng_freq = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/5000wordfrequencylist.csv"
 		self.jpn_freq1 = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/1-10000_frequency_list_japanese.csv" 
 		self.jpn_freq2 = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/10001-20000_frequency_list_japanese.csv"
-		self.jpn_hira = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/EDICT2.txt"
+		self.jpn_hira_path = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/EDICT2.txt"
 
 		self.eng = {}
 		self.jpn = {}
 		self.jpn_hira = {}
 
-		#self.error_log = open("../files/logs/error_log.txt","w")
+		self.error_log = open("/home/andy/Documents/Projects/AI_Subs/test/logs/error_log_dict.txt","w")
 
 		#initialize dictionaries
 		#build_eng_freq()
 		#build_jpn_freq()
 		#build_jpn_hira()
+	
 
 	def build_eng_freq(self):
 		df = pd.read_csv(self.eng_freq, header=0)
@@ -44,10 +57,12 @@ class D_bot:
 		return 
 	
 	def build_jpn_freq(self):
+		exclude = set(string.punctuation) #set of punctuation to clear from words 
+		
 		#1 to 10,000 most common
 		with codecs.open(self.jpn_freq1,'r',encoding='utf8') as f1:
 			for i in range(1, 10001):
-				word = f1.readline().strip()
+				word = clean(f1.readline(), exclude)
 				rank = i
 				self.jpn[word] = rank
 			f1.close()
@@ -55,100 +70,153 @@ class D_bot:
 		#10,000 to 20,000 most common 
 		with codecs.open(self.jpn_freq2,'r',encoding='utf8') as f2:
 			for i in range(10001, 20001):
-				word = f2.readline().strip()
+				word = clean(f2.readline(), exclude)
 				rank = i
 				self.jpn[word] = rank 
 			f2.close()
-	
+
+		return
+
 	def build_jpn_hira(self):
+		test_path = "/home/andy/Documents/Projects/AI_Subs/test/test_files/jpnhira1.txt"
 		
-		#error_log = open("../log/error_log2.txt","w")
-
-		with codecs.open(self.jpn_hira, 'r', encoding="utf8") as f3:
+		#with codecs.open(self.jpn_hira_path, 'r', encoding="utf8") as f3:
+		with codecs.open(test_path, 'r', encoding="utf8") as f3:
 			for line in f3:
-				#clean problematic format syntax
-				line = format_clean(line) 
 
-				#split kanji, hiragana
+				#parse entry into kanji and hiragana according to dictionary format
 				match = re.search(r'([^\[\]]*)(\[)([^\[\]]*)(\])',line,re.UNICODE) #parse entry according to format 
 				
-				"""this error occurs if the entry is already in hiragana, which implies that there's no kanji portion to split""" 
 				try:
 					kanji = match.group(1) 
 					hiragana = match.group(3)
+					for tup in process_jpn_hira(kanji, hiragana):
+						self.jpn_hira[tup[0]] = tup[1]
+					
 				except AttributeError: 
 					s = "error_prcessing %s" % line
 					s = s.encode("UTF-8")
-					#error_log.write(s + "\n") #to see the entries giving this error specifically, uncomment the write operation
+					#print "error | %s \n" % s
 					continue
 
-				#parse entry and update dictionary accordingly
-				if parantheses_check(hiragana): self.h_build(hiragana)
-				else: self.regular_build(kanji,hiragana)
 
-			
 		#close documents
 		f3.close()
 		self.error_log.close()
 
-	"""Special build processes for kanji/hiragana dictionary"""
-	def regular_build(self, k,h):
-		k_list = k.split(";")
-		h_list = h.split(";")
-		
-		#clean kanji of parantheses
-		for k in k_list:
-			if parantheses_check(k): k = kanji_clean(k)
-
-		#equal entries match up
-		if len(k_list) == len(h_list):
-			for i in range(len(k_list)):
-				self.jpn_hira[k_list[i]] = h_list[i]
-			
-		#unequal number of entries so just use first hiragana entry for all kanji
-		else:
-			for k in k_list:
-				self.jpn_hira[k] = h_list[0]
-
-	def h_build(self, h):
-		h_list = h.split(";")
-		
-		for entry in h_list:
-			
-			""" try/except occurs when within particular hiragana entry, there are parts with parantheses and parts without"""
-			try:
-				match = re.search(r'(.*)(\()(.*)(\))', entry)
-				hiragana = match.group(1)
-				kanji = match.group(3)
-				kanji_list = kanji.split(",")
-
-				for k in kanji_list:
-					self.jpn_hira[k] = hiragana
-			
-			except AttributeError:
-				error = "hiragana raising attribute error"
-				message = "full entry: %s  | portion raising error: %s" % (h,entry)
-				self.write_log(message, error)
-				continue
-
-	def write_log(self, error, msg):
-		output = (error + " | " + msg).encode("UTF-8")
-		self.error_log.write(output+"\n")
 
 
 
 
 
 ###########################
-"""Helper functions"""
+# Processing Functions
+###########################
+"""
+Given a dictionary entry of EDICT2.txt split into kanji and hiragana portions, return a list of tuples
+with each tuple representing a dictionary entry. 
+"""
+def process_jpn_hira(k,h):
+
+	"""
+	1. Setup
+	"""
+	kanji_elements = k.split(";") #kanji and hiragana elements are delimited by semicolons. 
+	hiragana_elements = h.split(";")
+	no_kanji = len(kanji_elements)
+	no_hiragana = len(hiragana_elements)
+	l = [] # final list to be returned
+
+
+	"""
+	2. Basic checks to deal with special formatting issues
+	"""
+	if no_kanji == 0 or no_hiragana == 0: #error checking
+		raise AttributeError("no kanji or hiragana in line")
+		return
+
+	#clean kanji and hiragana elements of grammar tags
+	clean_kanji_elements = clean_grammar_tags(kanji_elements)
+	clean_hiragana_elements = clean_grammar_tags(hiragana_elements)
+
+	#detect exceptions (see notes)
+	if detect_format_exception(clean_hiragana_elements): #need to write this
+		for item in clean_hiragana_elements: l.extend(process_hiragana_exception(item))
+		return l
+
+	"""
+	3. Process line 
+	"""
+
+	#same number of elements for both kanji and hiragana implies one to one correspondence between the elements
+	if no_kanji == no_hiragana:
+		for i in range(no_kanji):
+			tup = (clean_kanji_elements[i], clean_hiragana_elements[i])
+			l.append(tup)
+		return l
+
+
+	#kanji elements more than hiragana elements -> link all kanji elements to first hiragana element
+	#hiragana elements more than kanji elements -> same as above (link all kanji elements to first hiragana element and disregard other hiragana elements)
+	else:
+		for i in range(no_kanji):
+			tup = (clean_kanji_elements[i], clean_hiragana_elements[0])
+			l.append(tup)
+		return l
+
+	
+
+
+"""
+Given a hiragana exception, process line accordingly. 
+
+E.G. 
+input: おにころし(鬼殺し,鬼ころし)
+output: [(鬼殺し,おにころし ), (鬼ころし,おにころし)]
+"""
+
+#^\(\)
+#^\(\)
+def process_hiragana_exception(entry):
+	l = []
+	match = re.search(r'([.]*)(\()([.]*)(\))',entry,re.UNICODE) #separate entry into kanji and hiragana
+	if match:
+		hiragana, kanji = match.group(1), match.group(3)
+		for k in kanji.split(","): 
+			l.append((k.encode("utf-8"),hiragana.encode("utf-8")))
+	return l
+
+
+
+
+
+
+###########################
+#Helper functions
 ###########################
 
-#Takes kanji and hiragana expression and clears away annoying formatting guides [(P, (oK), (ateji), ....)]
-def format_clean(s):
+
+#Given a list of kanji/hiragana expressions, function removes grammar tags [(P, (oK), (ateji), ....)]
+def detect_format_exception(expression_list):
+	for e in expression_list: 
+		match = re.search(r'\(', e) #check expression for parantheses
+		if match: return True
+	return False
+
+def clean_grammar_tags(s):
 	problem_expressions = ["\(P\)","\(iK\)","\(ik\)","\(oK\)","\(ok\)","\(io\)","\(ateji\)","\(gikun\)"]
-	for p in problem_expressions: 
-		s = re.sub(p,"",s)
+	for i in range(len(s)):
+		for p in problem_expressions:
+			s[i] = re.sub(p,"",s[i])
 	return s
+
+#Given a string and a set of symbols to exclude, function clears away all characters in exclusion set.
+def clean(s,exclude):
+	return "".join(ch for ch in s if ch not in exclude).strip()
+
+
+
+
 
 
 #takes a kanji expression and clears away any items embedded within parantheses
@@ -156,11 +224,7 @@ def kanji_clean(k):
 	match = re.search(r'(.+)(\()(.+)(\))',k)
 	return match.group(1)
 
-#checks if there is a parentheses in expression
-def parantheses_check(s):
-	match = re.search(r'\(', s)
-	if match: return True
-	return False
+
 
 
 
@@ -171,10 +235,13 @@ def parantheses_check(s):
 def main():
 	#testing building jpn_hira
 	D = D_bot()
-	D.build_eng_freq()
-	print "hello"
-	print D.eng.items()
-	
+	D.build_jpn_hira()
+	for item in D.jpn_hira.iteritems():
+		print "kanji: %s | hiragana: %s" % (item[0], item[1])
+
+	#s = ["an(P)", "bp(io)"]
+	#print "cleaning grammar tags"
+	#print clean_grammar_tags(s)
 
 if __name__ == '__main__':
 	main()
