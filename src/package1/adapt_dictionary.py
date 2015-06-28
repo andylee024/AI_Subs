@@ -6,26 +6,19 @@ This module builds the following dictionaries that are useful for translation se
 	3. japanese (kanji: hiragana) dictionary
 
 It is important to remember that all our dictionary entries for japanese are being encoded in utf-8, so to display them correctly
-we'll need to decode them from "utf-8". 
+we'll need to decode them from "utf-8". See test1.py for implementation details.
 
 Notes:
 1. Exception detection in jpn_hira
-  Some lines in the dictionary file require special attention to process correctly. We list a few odd cases of lines we have found
-  and explain how we process them. 
-
-  a) " 鬼殺し;鬼ころし;鬼ごろし [おにころし(鬼殺し,鬼ころし);おにごろし(鬼殺し,鬼ごろし)] "
-
-  Here, all our information is embedded in the hiragana and we really have no reason to use the kanji. With this process
-  we clear away the hiragana for grammar tags (e.g. (p). (io)) and link the list of kanji corresponding to each hiragana 
-  in the dictionary. 
-
-  For example, 鬼殺し,鬼ころし -> おにころし and 鬼殺し,鬼ごろし -> おにごろし
+  Some lines in the dictionary file require special attention to process correctly. jpnhira1.txt contains a collection of types of lines
+  we have come across in the dictionary. Details on how to process those lines are also included in the file. 
 
 """
 import re
 import codecs #library to read input in utf-8
 import pandas as pd
 import string
+import chardet
 
 class D_bot:
 	def __init__(self):
@@ -60,7 +53,7 @@ class D_bot:
 		exclude = set(string.punctuation) #set of punctuation to clear from words 
 		
 		#1 to 10,000 most common
-		with codecs.open(self.jpn_freq1,'r',encoding='utf8') as f1:
+		with codecs.open(self.jpn_freq1,'r',encoding='utf-8') as f1:
 			for i in range(1, 10001):
 				word = clean(f1.readline(), exclude)
 				rank = i
@@ -68,7 +61,7 @@ class D_bot:
 			f1.close()
 
 		#10,000 to 20,000 most common 
-		with codecs.open(self.jpn_freq2,'r',encoding='utf8') as f2:
+		with codecs.open(self.jpn_freq2,'r',encoding='utf-8') as f2:
 			for i in range(10001, 20001):
 				word = clean(f2.readline(), exclude)
 				rank = i
@@ -78,14 +71,10 @@ class D_bot:
 		return
 
 	def build_jpn_hira(self):
-		test_path = "/home/andy/Documents/Projects/AI_Subs/test/test_files/jpnhira1.txt"
-		
-		#with codecs.open(self.jpn_hira_path, 'r', encoding="utf8") as f3:
-		with codecs.open(test_path, 'r', encoding="utf8") as f3:
-			for line in f3:
 
-				#parse entry into kanji and hiragana according to dictionary format
-				match = re.search(r'([^\[\]]*)(\[)([^\[\]]*)(\])',line,re.UNICODE) #parse entry according to format 
+		with codecs.open(self.jpn_hira_path, 'r', encoding="utf-8") as f3:	
+			for line in f3:
+				match = re.search(r'([^\[\]]*)(\[)([^\[\]]*)(\])',line,re.UNICODE) #parse entry into kanji and hiragana according to format 
 				
 				try:
 					kanji = match.group(1) 
@@ -96,16 +85,11 @@ class D_bot:
 				except AttributeError: 
 					s = "error_prcessing %s" % line
 					s = s.encode("UTF-8")
-					#print "error | %s \n" % s
+					self.error_log.write("error | %s \n" % s)
 					continue
 
-
-		#close documents
 		f3.close()
 		self.error_log.close()
-
-
-
 
 
 
@@ -140,8 +124,9 @@ def process_jpn_hira(k,h):
 	clean_hiragana_elements = clean_grammar_tags(hiragana_elements)
 
 	#detect exceptions (see notes)
-	if detect_format_exception(clean_hiragana_elements): #need to write this
-		for item in clean_hiragana_elements: l.extend(process_hiragana_exception(item))
+	if detect_format_exception(clean_hiragana_elements): 
+		for item in clean_hiragana_elements: 
+			l.extend(process_hiragana_exception(item))
 		return l
 
 	"""
@@ -151,22 +136,21 @@ def process_jpn_hira(k,h):
 	#same number of elements for both kanji and hiragana implies one to one correspondence between the elements
 	if no_kanji == no_hiragana:
 		for i in range(no_kanji):
-			tup = (clean_kanji_elements[i], clean_hiragana_elements[i])
+			tup = (clean_kanji_elements[i].strip(), clean_hiragana_elements[i].strip())
 			l.append(tup)
 		return l
-
 
 	#kanji elements more than hiragana elements -> link all kanji elements to first hiragana element
 	#hiragana elements more than kanji elements -> same as above (link all kanji elements to first hiragana element and disregard other hiragana elements)
 	else:
 		for i in range(no_kanji):
-			tup = (clean_kanji_elements[i], clean_hiragana_elements[0])
+			tup = (clean_kanji_elements[i].strip(), clean_hiragana_elements[0].strip())
 			l.append(tup)
 		return l
 
-	
-
-
+##############################
+# Processing exception lines
+################################
 """
 Given a hiragana exception, process line accordingly. 
 
@@ -175,20 +159,20 @@ input: おにころし(鬼殺し,鬼ころし)
 output: [(鬼殺し,おにころし ), (鬼ころし,おにころし)]
 """
 
-#^\(\)
-#^\(\)
+def detect_format_exception(expression_list):
+	for e in expression_list: 
+		match = re.search(r'\(', e) #check expression for parantheses
+		if match: return True
+	return False
+
 def process_hiragana_exception(entry):
 	l = []
-	match = re.search(r'([.]*)(\()([.]*)(\))',entry,re.UNICODE) #separate entry into kanji and hiragana
+	match = re.search(r'([^\(\)]*)(\()([^\(\)]*)(\))',entry,re.UNICODE) #separate entry into kanji and hiragana
 	if match:
 		hiragana, kanji = match.group(1), match.group(3)
 		for k in kanji.split(","): 
-			l.append((k.encode("utf-8"),hiragana.encode("utf-8")))
+			l.append((k.strip(),hiragana.strip()))
 	return l
-
-
-
-
 
 
 ###########################
@@ -197,12 +181,6 @@ def process_hiragana_exception(entry):
 
 
 #Given a list of kanji/hiragana expressions, function removes grammar tags [(P, (oK), (ateji), ....)]
-def detect_format_exception(expression_list):
-	for e in expression_list: 
-		match = re.search(r'\(', e) #check expression for parantheses
-		if match: return True
-	return False
-
 def clean_grammar_tags(s):
 	problem_expressions = ["\(P\)","\(iK\)","\(ik\)","\(oK\)","\(ok\)","\(io\)","\(ateji\)","\(gikun\)"]
 	for i in range(len(s)):
@@ -215,38 +193,30 @@ def clean(s,exclude):
 	return "".join(ch for ch in s if ch not in exclude).strip()
 
 
-
-
-
-
-#takes a kanji expression and clears away any items embedded within parantheses
-def kanji_clean(k): 
-	match = re.search(r'(.+)(\()(.+)(\))',k)
-	return match.group(1)
-
-
-
-
-
 ###########################
 """ Main (used for testing dictionary builds) """
 ###########################
 
 def main():
-	#testing building jpn_hira
+	# use this to do run simple tests
+	"""
 	D = D_bot()
 	D.build_jpn_hira()
-	for item in D.jpn_hira.iteritems():
-		print "kanji: %s | hiragana: %s" % (item[0], item[1])
-
-	#s = ["an(P)", "bp(io)"]
-	#print "cleaning grammar tags"
-	#print clean_grammar_tags(s)
+	d3 = D.jpn_hira
+	
+	s = u"お会計"
+	log = open("/home/andy/Documents/Projects/AI_Subs/src/package1/debug.txt","w")
+	log.write(s.encode("utf-8") + "\n")
+	log.write("keys start here \n")
+	
+	for item in d3.keys():
+		log.write(item.encode("utf-8") + "\n")
+		if s == item: print "YAY"
+	log.close()
+	"""
 
 if __name__ == '__main__':
 	main()
-
-
 
 
 

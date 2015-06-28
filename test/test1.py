@@ -60,21 +60,16 @@ class Test_AdaptDictionary(unittest.TestCase):
 		p1 = ("お会計".decode("utf-8"), "おかいけい".decode("utf-8"))
 		p2 = ("バフ盤".decode("utf-8"), "バフばん".decode("utf-8"))
 		p3 = ("鬼乳".decode("utf-8"), "きにゅう".decode("utf-8"))
-
-		#experiments 
-		print "%s, %s" % (p1[0], p1[1])
-		print "%s, %s" % (p2[0], p2[1])
-		print "%s, %s" % (p3[0], p3[1])
-		
-		#f3 = open("/home/andy/Documents/Projects/AI_Subs/test/japanese_hiragana_log.txt",'w')
-		#for item in d3.items():
-		#	 f3.write("%s | %s" % (item[0].decode("utf-8"), item[1].decode("utf-8")) + "\n")
-		#f3.close()
+		p4 = ("お会式".decode("utf-8"), "おえしき".decode("utf-8"))
+		p5 = ("鬼札".decode("utf-8"), "おにふだ".decode("utf-8"))
 
 		#run tests
-		#self.assertEqual(d3[p1[0], p1[1]], "jpn hira incorrect")
-		#self.assertEqual(d3[p2[0], p2[1]], "jpn hira incorrect")
-		#self.assertEqual(d3[p3[0], p3[1]], "jpn hira incorrect")
+		self.assertEqual(d3[p1[0]], p1[1], "jpn hira incorrect")
+		self.assertEqual(d3[p2[0]], p2[1], "jpn hira incorrect")
+		self.assertEqual(d3[p3[0]], p3[1], "jpn hira incorrect")
+		self.assertEqual(d3[p4[0]], p4[1], "jpn hira incorrect")
+		self.assertEqual(d3[p5[0]], p5[1], "jpn hira incorrect")
+
 
 
 		

@@ -11,10 +11,11 @@ def main():
 	######################################
 	path1 = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/1-10000_frequency_list_japanese.csv"
 	path2 = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/EDICT2.txt"
+	path3 = "/home/andy/Documents/Projects/AI_Subs/src/package1/hira_debug.txt"
 
 
 	#intialize document and determine encoding
-	f = open(path2,"r")
+	f = open(path3,"r")
 	detector = UniversalDetector()
 	
 	for line in f.readlines():
