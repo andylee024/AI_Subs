@@ -41,13 +41,18 @@ class D_bot:
 	
 
 	def build_eng_freq(self):
-		df = pd.read_csv(self.eng_freq, header=0)
+		#initialization
+		d = {}
+		path = "/home/andy/Documents/Projects/AI_Subs/files/dictionary_files/5000wordfrequencylist.csv"
+		
+		#processing
+		df = pd.read_csv(path header=0)
 		word_list = df['Word'][1:]
 		rank_list = df['Rank'][1:]
 		for i in range(1, len(word_list)+1): #iterate through words to create dictionary
 			w = str(word_list[i]).strip('\xc2\xa0') #get rid of spaces in word string
 			self.eng[w] = int(rank_list[i]) 
-		return 
+		return self.eng
 	
 	def build_jpn_freq(self):
 		exclude = set(string.punctuation) #set of punctuation to clear from words 
@@ -68,7 +73,7 @@ class D_bot:
 				self.jpn[word] = rank 
 			f2.close()
 
-		return
+		return self.jpn
 
 	def build_jpn_hira(self):
 
@@ -90,6 +95,8 @@ class D_bot:
 
 		f3.close()
 		self.error_log.close()
+
+		return self.jpn_hira
 
 
 

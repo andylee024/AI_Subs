@@ -5,7 +5,7 @@ import codecs #library to read input in utf-8
 
 """
 TODO: 
-1. specify output paths for annotated files 
+1. specify output paths for annotater class 
 2. debug regular expressions for ENG_Transcript
 3. Write unit tests 
 """
@@ -43,6 +43,7 @@ class ENG_Transcript(Transcript):
 	def __init__(self, path, language, level):
 		Transcript.__init__(self, path, language, level) 
 		self.output = open("new_transcript.txt","w") #designate path
+		self.Annotater = ENG_Annotater(self.level)
 
 	def annotate(self):
 		process(self.path, self.parse_line, self.output)
@@ -75,6 +76,7 @@ class JPN_Transcript(Transcript):
 		Transcript.__init__(self, path, language, level)
 		self.output = open("new_transcript.txt","w") 
 		self.TS = tinysegmenter.TinySegmenter() #Japanese segmenter object
+		self.Annotater = JPN_Annotater(self.level)
 
 	def annotate(self):
 		process(self.path, self.parse_line, self.output)
